@@ -117,8 +117,10 @@ The tools are the C#-capable forks [cbarrymore/crapper](https://github.com/cbarr
 Push-Location "$env:UB_TOOLS\<tool>"; python -m venv .venv; .venv\Scripts\pip install -e .; Pop-Location
 ```
 
-* Run every tool from the solution root (the directory with the `.sln` / `.slnx`). Results land in `.metrics\`.
-* Coverage comes from `dotnet test --collect "XPlat Code Coverage;Format=lcov"`, so test projects need `coverlet.collector`. A solution on Microsoft.Testing.Platform rejects `--collect`: use `--no-coverage` or a `--coverage-command` that writes LCOV under `target\coverage\csharp\`.
+* Set `$env:PYTHONIOENCODING = 'utf-8'` before running them. A cp1252 console makes them crash with `UnicodeEncodeError`.
+* Run every tool from the solution root (the directory with the `.sln` / `.slnx`). Results land in `.metrics\` and `target\`. If the project's `.gitignore` does not list them, add both before committing.
+* Coverage comes from `dotnet test --collect "XPlat Code Coverage;Format=lcov"` over the whole solution, so test projects need `coverlet.collector`. A solution on Microsoft.Testing.Platform rejects `--collect`: use `--no-coverage` or a `--coverage-command` that writes LCOV under `target\coverage\csharp\`.
+* When integration tests need Docker or a database, collect coverage from the unit tests only, in crapper and mutator alike: `--coverage-command 'dotnet test tests\Foo.UnitTests --collect "XPlat Code Coverage;Format=lcov" --results-directory target\coverage\csharp'`. After one crapper run, pass `--use-existing-coverage` to mutator instead.
 * Test projects (`*Test`, `*Tests`), `obj\`, `*.Designer.cs` and `*.g.cs` are skipped.
 
 ## Crapper
@@ -136,6 +138,7 @@ Push-Location "$env:UB_TOOLS\<tool>"; python -m venv .venv; .venv\Scripts\pip in
 * Use the mutator tool: `& "$env:UB_TOOLS\mutator\.venv\Scripts\mutator.exe" <file-or-dir>`. Start with the file you changed, or `--changed`.
 * When some test projects need Docker or a database, point it at the unit tests: `--test-command "dotnet test tests\Foo.UnitTests"`.
 * Its workers use symlinks: Windows needs Developer Mode or an elevated shell.
+* Each worker rebuilds the solution from scratch, so one file takes minutes. Run it in the background and on the files you changed only.
 * Cover the uncovered.
 * Kill the survivors.
 * Delete dead code.
