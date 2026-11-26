@@ -105,19 +105,37 @@ Every time you are asked to make a change follow:
 * The test calls the code the way its user does and checks the result that user would see.
 * If the test would still pass when every function returned nothing, throw it out.
 
+## Quality-Gate Tools (C#, Windows)
+
+The tools are the C#-capable forks [cbarrymore/crapper](https://github.com/cbarrymore/crapper), [cbarrymore/dryer](https://github.com/cbarrymore/dryer) and [cbarrymore/mutator](https://github.com/cbarrymore/mutator), run from PowerShell.
+
+* `$env:UB_TOOLS` is the directory that holds the three clones side by side (`crapper`, `dryer`, `mutator`). mutator imports `..\crapper`, so they must be siblings.
+* If `UB_TOOLS` is not set, ask the user where the tools are. Do not guess a path.
+* Each tool runs from its own venv: `$env:UB_TOOLS\<tool>\.venv\Scripts\<tool>.exe`. If that exe is missing, install it once:
+
+```powershell
+Push-Location "$env:UB_TOOLS\<tool>"; python -m venv .venv; .venv\Scripts\pip install -e .; Pop-Location
+```
+
+* Run every tool from the solution root (the directory with the `.sln` / `.slnx`). Results land in `.metrics\`.
+* Coverage comes from `dotnet test --collect "XPlat Code Coverage;Format=lcov"`, so test projects need `coverlet.collector`. A solution on Microsoft.Testing.Platform rejects `--collect`: use `--no-coverage` or a `--coverage-command` that writes LCOV under `target\coverage\csharp\`.
+* Test projects (`*Test`, `*Tests`), `obj\`, `*.Designer.cs` and `*.g.cs` are skipped.
+
 ## Crapper
 
-* Use the crapper tool
+* Use the crapper tool: `& "$env:UB_TOOLS\crapper\.venv\Scripts\crapper.exe"` (add paths, or `--changed`, to narrow it).
 * Reduce each function under  CRAP 10 by splitting it, by testing it, or both.
 * Consider whether case statements are worth reducing.
 
 ## Dryer
 
-* Use the dryer tool to eliminate duplication that rank 0.8 or above.
+* Use the dryer tool to eliminate duplication that rank 0.8 or above: `& "$env:UB_TOOLS\dryer\.venv\Scripts\dryer.exe" --threshold 0.8`.
 
 ## Mutator
 
-* Use the mutator tool
+* Use the mutator tool: `& "$env:UB_TOOLS\mutator\.venv\Scripts\mutator.exe" <file-or-dir>`. Start with the file you changed, or `--changed`.
+* When some test projects need Docker or a database, point it at the unit tests: `--test-command "dotnet test tests\Foo.UnitTests"`.
+* Its workers use symlinks: Windows needs Developer Mode or an elevated shell.
 * Cover the uncovered.
 * Kill the survivors.
 * Delete dead code.
